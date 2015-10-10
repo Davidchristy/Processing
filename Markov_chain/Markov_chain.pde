@@ -1,0 +1,213 @@
+/*
+WARNING, THIS IS VERY VERY SLOW and will cause computer to crash if left open
+I will work with changing the data-types to it takes far less memory, but for
+not don't leave it open.
+
+*/
+
+import java.util.HashMap;
+import java.util.ArrayList;
+
+float x = 0;
+int y =height/2;
+ArrayList<Integer> state;
+ArrayList<Integer> generatedState = new ArrayList<Integer>();
+boolean done = false;
+HashMap<Integer, ArrayList<Integer>> stateDict = new HashMap<Integer, ArrayList<Integer>>();
+int currentY = height/2;
+boolean stateTableMade = false;
+boolean clicked = false;
+Integer pointer;
+PImage img;
+PImage myImage;
+int timesThrough = -1;
+boolean blackForground = true;
+boolean reNewed = false;
+
+
+//A basic setup script, adding an image for pretty-ness
+void setup(){
+  size(700,200); 
+  state = new ArrayList<Integer>(width);
+  background(200);
+  img = loadImage("woods.jpg");  
+}
+
+//Checks to see if you have clicked or pressed any key
+//for when that happens it ends the capture section of
+//program and moves to generative section.
+void keyReleased() {
+  if(key==' '){
+    blackForground = !blackForground;
+  }
+  else if(keyCode==ENTER){
+    clicked=true;
+  }
+  else if(key=='r'){
+   reNewed = true; 
+  }
+}
+
+void draw(){
+  
+    //This draws the black-red line in the backgound
+    for(int i = 0; i <= height; i++){
+      
+      if(blackForground){
+        stroke(color(i,25,25));
+      }
+      else{
+        stroke(color(75,75,height-i));
+      }
+      line(0, i, width, i);
+    }
+    stroke(color(0));
+
+  //This is the capture section, I should put this inside one method
+  //and just call that, but whatever.
+  if(!done){
+    
+    //drawing the first line until you click or press any key
+    if(insideFrame()){
+      y = mouseY;
+      x += 1;
+      //CaptureLocation
+      state.add(state.size(), y);
+    }
+    
+    for(int i = 0; i < state.size(); i++){
+        line((width*1/10)-i+x, height, (width*1/10)-i+x, state.get(i));
+      }
+    //when the mouse is clicked set done to true and start doing the do section
+    if(clicked){
+      done = true;
+      clicked = false;
+      background(200);
+      x = 0;
+      y = height/2;
+    }
+  }
+  else{
+    
+    
+    //when done drawing line make the state table off data given and draw line
+    makeStateTable();
+
+    //this changes the what section of the picture is pulls from
+    if(x==0){
+       timesThrough += 1;
+       print(timesThrough);
+    }
+
+    //I FOUND IT! I need to scan the vaules of the list and decide if there is a 
+    //key, when there is not, make a key mapped to the starting vaule
+    if(stateDict.get(pointer)==null){
+      print(pointer + " : " + stateDict.get(pointer) + "\n");
+      //This picks a new pointer, if there is a weird error
+      pointer = Math.round(random(height));
+      while(!stateDict.containsKey((Integer) pointer)){
+        pointer = Math.round(random(height));
+      }
+    }
+    //this picks a random index of the list of possible y vaules to pick next
+    int pointerIndex = Math.round(random(stateDict.get(pointer).size()-1));
+      
+    //this adds the vaules to a list so they can be drawn again and again in the loops 
+    generatedState.add(stateDict.get(pointer).get(pointerIndex));
+      
+
+    //this draws the images in the foreground
+    for(int i = 0; i <= x; i++){
+      if(!blackForground){
+        myImage = img.get((i + (width*timesThrough))%img.width, 0 ,1,height);
+        image(myImage, -i+x,generatedState.get(i));
+      } else {
+        line(-i+x, height, -i+x, generatedState.get(i));
+      }
+    }
+
+    pointer = stateDict.get(pointer).get(pointerIndex);
+    x += 1;
+    
+    if(reNewed){
+      reNewed = false;
+      state = generatedState;
+      stateTableMade = false;
+      generatedState = new ArrayList<Integer>();
+      background(200);
+      x = 0;
+      y = height/2;
+    }
+    
+    if(clicked){
+      stateDict = new HashMap<Integer, ArrayList<Integer>>();
+      generatedState = new ArrayList<Integer>();
+      state = new ArrayList<Integer>(width);
+      done = false;
+      stateTableMade = false;
+      clicked = false;
+      background(200);
+      x = 0;
+      y = height/2;
+    }
+  }  
+}
+
+void makeStateTable(){
+  
+  //If the stateable is already made, ignore all this
+  if(stateTableMade) return;
+  stateTableMade = true;
+  
+  //this runs through the whole state table, minus the last one
+  //adding all the vaules to their keys
+  for(int x = 0; x < state.size() - 1; x++){
+    y = state.get(x);
+    //this checks to see if the state table already contains the key
+    if( !stateDict.containsKey((Integer) y)){
+
+      //if it doesn't, but the key in there.
+     stateDict.put((Integer) y, new ArrayList<Integer>()); 
+    }
+    
+    //This adds the next y vaule in the list, and is vital for the Markov model to work 
+    stateDict.get((Integer) y).add((Integer) state.get(Math.round(x) + 1));
+  }
+  
+  //This picks a starting pointer, something to get the ball rolling
+  pointer = Math.round(random(height));
+  while(!stateDict.containsKey((Integer) pointer)){
+    pointer = Math.round(random(height));
+  }
+  
+  //This checks to see if there are any keys mapped to only a 
+  //set of the same vaule, and if so it adds it the starting state to it.
+  //This is because this would only happen when the the string is ending. 
+  for ( Integer tempKey : stateDict.keySet()){
+    int first=stateDict.get(tempKey).get(0);
+    boolean allSame = true;
+    if(tempKey == first){
+      print(tempKey+" : "+stateDict.get(tempKey).toString() + "\n");
+      for(int i = 1; i < stateDict.get(tempKey).size(); i++){
+        if(tempKey != stateDict.get(tempKey).get(i)){
+          allSame = false; 
+        }
+      }
+      if(allSame){
+        stateDict.get(tempKey).add((Integer) state.get(0));
+      }
+    }
+  }
+  //end(for)
+}
+
+//http://stackoverflow.com/questions/19532377/detect-mouse-leaving-window-with-processing
+//with some modding
+boolean insideFrame() {
+  boolean in = false;
+  if(mouseX > 0 && width > mouseX)
+    if(mouseY > 0 && height > mouseY)
+      in = true;
+  return in;
+}
+
